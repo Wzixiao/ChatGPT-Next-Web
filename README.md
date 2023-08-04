@@ -3,7 +3,7 @@
 
 <h1 align="center">ChatGPT Next Web</h1>
 
-### 暂时项目不支持docker
+### 暂时不支持docker
 
 English / [简体中文](./README_CN.md) / [原版](./README.md) 
 
@@ -171,6 +171,12 @@ If you do not want users to query balance, set this value to 1.
 
 NodeJS >= 18, Docker >= 20
 
+# Start
+
+## Create .env
+```
+cp .env.template .env.local
+```
 
 ## Install dependencies
 ```
@@ -184,7 +190,8 @@ npm run dev
 
 
 
-## Development（如果是中国用户，最好挂载proxy）
+
+## Development
 
 > [简体中文 > 如何进行二次开发](./README_CN.md#开发)
 
@@ -200,7 +207,6 @@ BASE_URL=https://chatgpt1.nextweb.fun/api/proxy
 ```
 
 
-## Deployment
 
 
 ## Screenshots
