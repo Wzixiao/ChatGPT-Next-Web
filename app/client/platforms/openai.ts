@@ -14,6 +14,79 @@ import {
 } from "@fortaine/fetch-event-source";
 import { prettyObject } from "@/app/utils/format";
 
+const functionsList = [
+  {
+    name: "execute_python",
+    description:
+      "Exexute python code. Args: code (String): It's just a python code string. Returns: CodeExecutionResponse: The result of the code execution. If you need to output the result, you must use print to wrap the variable you want to print.",
+    parameters: {
+      type: "object",
+      properties: {
+        code: {
+          type: "string",
+          example:
+            'with open("./LICENSE", "r") as file:\n file_contents = file.read()\nprint(file_contents)',
+        },
+      },
+      required: ["code"],
+    },
+  },
+  {
+    name: "execute_shell",
+    description:
+      "Run commands. Args:command(String): It's just a shell string. Returns: CommandExecutionResponse(String):: The result of the command execution.",
+    parameters: {
+      type: "object",
+      properties: {
+        command: {
+          type: "string",
+          example: "ls -la",
+        },
+      },
+      required: ["command"],
+    },
+  },
+];
+
+function getJson(text: string) {
+  text = text.replace(/```\n/g, "");
+  text = text.replace(/\n```/g, "");
+
+  let start = text.indexOf("{");
+  let end = text.lastIndexOf("}");
+
+  if (start != -1 && end != -1) {
+    text = text.slice(start, end + 1);
+  }
+
+  return text;
+}
+
+async function serviceStreamToText(stream: ReadableStream) {
+  const decoder = new TextDecoder("utf-8");
+  const reader = stream.getReader();
+  let result: any = "";
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    result += decoder.decode(value);
+  }
+
+  try {
+    result = JSON.parse(result as string);
+  } catch (e) {
+    console.error("Error parsing JSON", e);
+    return "";
+  }
+
+  if (typeof result === "object" && result.code != 200) {
+    return "";
+  }
+
+  return result.data;
+}
+
 export interface OpenAIListModelResponse {
   object: string;
   data: Array<{
@@ -66,6 +139,8 @@ export class ChatGPTApi implements LLMApi {
       presence_penalty: modelConfig.presence_penalty,
       frequency_penalty: modelConfig.frequency_penalty,
       top_p: modelConfig.top_p,
+      functions: functionsList,
+      function_call: "auto",
     };
 
     console.log("[Request] openai payload: ", requestPayload);
@@ -95,7 +170,7 @@ export class ChatGPTApi implements LLMApi {
 
         const finish = () => {
           if (!finished) {
-            options.onFinish(responseText);
+            options.onFinish(responseText, false, "");
             finished = true;
           }
         };
@@ -128,6 +203,7 @@ export class ChatGPTApi implements LLMApi {
               let extraInfo = await res.clone().text();
               try {
                 const resJson = await res.clone().json();
+
                 extraInfo = prettyObject(resJson);
               } catch {}
 
@@ -144,17 +220,50 @@ export class ChatGPTApi implements LLMApi {
               return finish();
             }
           },
-          onmessage(msg) {
+          async onmessage(msg) {
             if (msg.data === "[DONE]" || finished) {
               return finish();
             }
+
             const text = msg.data;
+
             try {
               const json = JSON.parse(text);
-              const delta = json.choices[0].delta.content;
+              let delta;
+
+              if (json.choices[0].delta.function_call) {
+                delta = json.choices[0].delta.function_call.arguments;
+              } else {
+                delta = json.choices[0].delta.content;
+              }
+
               if (delta) {
                 responseText += delta;
+
+                if (json.choices[0].delta.function_call) {
+                  if (
+                    responseText.startsWith("{") ||
+                    responseText.startsWith("```")
+                  ) {
+                    responseText = getJson(responseText);
+                    responseText = "```\n" + responseText + "\n```";
+                  }
+                }
+
                 options.onUpdate?.(responseText, delta);
+              }
+
+              if (json.choices[0].finish_reason == "function_call") {
+                responseText = getJson(responseText);
+
+                const result = await fetch("/api/service", {
+                  method: "POST",
+                  body: responseText,
+                });
+
+                const commodRunResult = await serviceStreamToText(result.body!);
+
+                options.onFinish(responseText, true, commodRunResult);
               }
             } catch (e) {
               console.error("[Request] parse error", text, msg);
@@ -175,7 +284,7 @@ export class ChatGPTApi implements LLMApi {
 
         const resJson = await res.json();
         const message = this.extractMessage(resJson);
-        options.onFinish(message);
+        options.onFinish(message, false, "");
       }
     } catch (e) {
       console.log("[Request] failed to make a chat reqeust", e);

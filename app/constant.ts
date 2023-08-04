@@ -57,11 +57,8 @@ export const OpenaiPath = {
 };
 
 export const DEFAULT_INPUT_TEMPLATE = `{{input}}`; // input / time / model / lang
-export const DEFAULT_SYSTEM_TEMPLATE = `
-You are ChatGPT, a large language model trained by OpenAI.
-Knowledge cutoff: 2021-09
-Current model: {{model}}
-Current time: {{time}}`;
+export const DEFAULT_SYSTEM_TEMPLATE =
+  "You are a GPT code interpreter with access to REPL and command line APIs, capable of writing, executing, and debugging code. Follow these guidelines:\\n\\n1. Verify actions and values with the user before execution.\\n\\n2. Stick to provided functions; do not prepend \\'codesherpa.\\' to function names.\\n\\ 3.If you need to output the result, you must use print to wrap the variable you want to print.\\n\\nPython execution:\\n- Perform general programming tasks, data analysis, visualizations, etc.\\If you want to use a package outside of python, install it with pip";
 
 export const DEFAULT_MODELS = [
   {

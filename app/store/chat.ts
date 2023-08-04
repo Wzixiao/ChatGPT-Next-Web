@@ -24,6 +24,8 @@ export type ChatMessage = RequestMessage & {
   isError?: boolean;
   id: string;
   model?: ModelType;
+  isRunningCode: boolean;
+  isRunningResult: boolean;
 };
 
 export function createMessage(override: Partial<ChatMessage>): ChatMessage {
@@ -32,6 +34,8 @@ export function createMessage(override: Partial<ChatMessage>): ChatMessage {
     date: new Date().toLocaleString(),
     role: "user",
     content: "",
+    isRunningCode: false,
+    isRunningResult: false,
     ...override,
   };
 }
@@ -52,7 +56,8 @@ export interface ChatSession {
   lastUpdate: number;
   lastSummarizeIndex: number;
   clearContextIndex?: number;
-
+  isRunningCode: boolean;
+  isRunningResult: boolean;
   mask: Mask;
 }
 
@@ -75,7 +80,8 @@ function createEmptySession(): ChatSession {
     },
     lastUpdate: Date.now(),
     lastSummarizeIndex: 0,
-
+    isRunningCode: false,
+    isRunningResult: false,
     mask: createEmptyMask(),
   };
 }
@@ -91,7 +97,7 @@ interface ChatStore {
   currentSession: () => ChatSession;
   nextSession: (delta: number) => void;
   onNewMessage: (message: ChatMessage) => void;
-  onUserInput: (content: string) => Promise<void>;
+  onUserInput: (content: string, isRunningResult: boolean) => Promise<void>;
   summarizeSession: () => void;
   updateStat: (message: ChatMessage) => void;
   updateCurrentSession: (updater: (session: ChatSession) => void) => void;
@@ -274,16 +280,24 @@ export const useChatStore = create<ChatStore>()(
         get().summarizeSession();
       },
 
-      async onUserInput(content) {
+      async onUserInput(content, isRunningResult = false) {
         const session = get().currentSession();
         const modelConfig = session.mask.modelConfig;
 
         const userContent = fillTemplateWith(content, modelConfig);
+
         console.log("[User Input] after template: ", userContent);
+
+        if (isRunningResult) {
+          content =
+            "The following is the information I printed using your command or code. Is it correct? If it is correct, please analyze the printed information. If there is no data below, please analyze the reason for not printing\n\n" +
+            content;
+        }
 
         const userMessage: ChatMessage = createMessage({
           role: "user",
           content: userContent,
+          isRunningResult: isRunningResult,
         });
 
         const botMessage: ChatMessage = createMessage({
@@ -295,6 +309,8 @@ export const useChatStore = create<ChatStore>()(
         // get recent messages
         const recentMessages = get().getMessagesWithMemory();
         const sendMessages = recentMessages.concat(userMessage);
+        console.log("sendMessages", sendMessages);
+
         const messageIndex = get().currentSession().messages.length + 1;
 
         // save user's and bot's message
@@ -309,6 +325,8 @@ export const useChatStore = create<ChatStore>()(
           ]);
         });
 
+        const nextOnUserInput = this.onUserInput.bind(this);
+
         // make request
         api.llm.chat({
           messages: sendMessages,
@@ -322,13 +340,19 @@ export const useChatStore = create<ChatStore>()(
               session.messages = session.messages.concat();
             });
           },
-          onFinish(message) {
+          async onFinish(message, isContinue, nextContent) {
             botMessage.streaming = false;
             if (message) {
               botMessage.content = message;
               get().onNewMessage(botMessage);
             }
             ChatControllerPool.remove(session.id, botMessage.id);
+            if (isContinue) {
+              session.isRunningCode = true;
+              session.messages[session.messages.length - 1].isRunningCode =
+                true;
+              await nextOnUserInput(nextContent, (isRunningResult = true));
+            }
           },
           onError(error) {
             const isAborted = error.message.includes("aborted");

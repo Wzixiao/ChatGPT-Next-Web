@@ -3,14 +3,11 @@
 
 <h1 align="center">ChatGPT Next Web</h1>
 
-### 暂时项目不支持docker
-
-English / [简体中文](./README_CN.md) / [原版](./README.md) 
+English / [简体中文](./README_CN.md)
 
 One-Click to get well-designed cross-platform ChatGPT web UI.
 
 一键免费部署你的跨平台私人 ChatGPT 应用。
-
 
 [![Web][Web-image]][web-url]
 [![Windows][Windows-image]][download-url]
@@ -112,6 +109,33 @@ One-Click to get well-designed cross-platform ChatGPT web UI.
 
 [English > FAQ](./docs/faq-en.md)
 
+## Keep Updated
+
+> [简体中文 > 如何保持代码更新](./README_CN.md#保持更新)
+
+If you have deployed your own project with just one click following the steps above, you may encounter the issue of "Updates Available" constantly showing up. This is because Vercel will create a new project for you by default instead of forking this project, resulting in the inability to detect updates correctly.
+
+We recommend that you follow the steps below to re-deploy:
+
+- Delete the original repository;
+- Use the fork button in the upper right corner of the page to fork this project;
+- Choose and deploy in Vercel again, [please see the detailed tutorial](./docs/vercel-cn.md).
+
+### Enable Automatic Updates
+
+> If you encounter a failure of Upstream Sync execution, please manually sync fork once.
+
+After forking the project, due to the limitations imposed by GitHub, you need to manually enable Workflows and Upstream Sync Action on the Actions page of the forked project. Once enabled, automatic updates will be scheduled every hour:
+
+![Automatic Updates](./docs/images/enable-actions.jpg)
+
+![Enable Automatic Updates](./docs/images/enable-actions-sync.jpg)
+
+### Manually Updating Code
+
+If you want to update instantly, you can check out the [GitHub documentation](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/working-with-forks/syncing-a-fork) to learn how to synchronize a forked project with upstream code.
+
+You can star or watch this project or follow author to get release notifictions in time.
 
 ## Access Password
 
@@ -171,20 +195,7 @@ If you do not want users to query balance, set this value to 1.
 
 NodeJS >= 18, Docker >= 20
 
-
-## Install dependencies
-```
-npm install
-```
-
-## Debug start
-```
-npm run dev
-```
-
-
-
-## Development（如果是中国用户，最好挂载proxy）
+## Development
 
 > [简体中文 > 如何进行二次开发](./README_CN.md#开发)
 
@@ -199,9 +210,52 @@ OPENAI_API_KEY=<your api key here>
 BASE_URL=https://chatgpt1.nextweb.fun/api/proxy
 ```
 
+### Local Development
+
+```shell
+# 1. install nodejs and yarn first
+# 2. config local env vars in `.env.local`
+# 3. run
+yarn install
+yarn dev
+```
 
 ## Deployment
 
+> [简体中文 > 如何部署到私人服务器](./README_CN.md#部署)
+
+### Docker (Recommended)
+
+```shell
+docker pull yidadaa/chatgpt-next-web
+
+docker run -d -p 3000:3000 \
+   -e OPENAI_API_KEY="sk-xxxx" \
+   -e CODE="your-password" \
+   yidadaa/chatgpt-next-web
+```
+
+You can start service behind a proxy:
+
+```shell
+docker run -d -p 3000:3000 \
+   -e OPENAI_API_KEY="sk-xxxx" \
+   -e CODE="your-password" \
+   -e PROXY_URL="http://localhost:7890" \
+   yidadaa/chatgpt-next-web
+```
+
+If your proxy needs password, use:
+
+```shell
+-e PROXY_URL="http://127.0.0.1:7890 user pass"
+```
+
+### Shell
+
+```shell
+bash <(curl -s https://raw.githubusercontent.com/Yidadaa/ChatGPT-Next-Web/main/scripts/setup.sh)
+```
 
 ## Screenshots
 

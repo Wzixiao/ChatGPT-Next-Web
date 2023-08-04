@@ -678,7 +678,7 @@ export function Chat() {
     }
   };
 
-  const doSubmit = (userInput: string) => {
+  const doSubmit = async (userInput: string) => {
     if (userInput.trim() === "") return;
     const matchCommand = chatCommands.match(userInput);
     if (matchCommand.matched) {
@@ -688,7 +688,7 @@ export function Chat() {
       return;
     }
     setIsLoading(true);
-    chatStore.onUserInput(userInput).then(() => setIsLoading(false));
+    chatStore.onUserInput(userInput, false).then(() => setIsLoading(false));
     localStorage.setItem(LAST_INPUT_KEY, userInput);
     setUserInput("");
     setPromptHints([]);
@@ -836,7 +836,9 @@ export function Chat() {
 
     // resend the message
     setIsLoading(true);
-    chatStore.onUserInput(userMessage.content).then(() => setIsLoading(false));
+    chatStore
+      .onUserInput(userMessage.content, false)
+      .then(() => setIsLoading(false));
     inputRef.current?.focus();
   };
 
@@ -1043,6 +1045,38 @@ export function Chat() {
       >
         {messages.map((message, i) => {
           const isUser = message.role === "user";
+          const isRunningCode = message.isRunningCode;
+          const isRunningResult = message.isRunningResult;
+          let content = message.content;
+          // console.log(message);
+
+          if (isRunningCode) {
+            let auxiliaryPointer = i;
+            content =
+              "## Execut code/command\n" +
+              "```shell\n" +
+              content +
+              "\n```" +
+              "\n";
+
+            while (auxiliaryPointer < messages.length - 1) {
+              auxiliaryPointer++;
+
+              if (messages[auxiliaryPointer].isRunningResult) {
+                content += "## Executed Result\n";
+                const lines = messages[auxiliaryPointer].content.split("\n");
+                for (const line of lines) {
+                  content += "> " + line + "\n";
+                }
+              } else if (messages[auxiliaryPointer].role == "assistant") {
+                content += "## Gpt Result\n";
+                content += messages[auxiliaryPointer].content + "\n";
+              } else {
+                break;
+              }
+            }
+          }
+
           const isContext = i < context.length;
           const showActions =
             i > 0 &&
@@ -1052,11 +1086,14 @@ export function Chat() {
 
           const shouldShowClearContextDivider = i === clearContextIndex - 1;
 
-          return (
+          return !isRunningResult &&
+            !(i != 0 && messages[i - 1].isRunningResult) ? (
             <Fragment key={i}>
               <div
                 className={
-                  isUser ? styles["chat-message-user"] : styles["chat-message"]
+                  isUser && !isRunningResult
+                    ? styles["chat-message-user"]
+                    : styles["chat-message"]
                 }
               >
                 <div className={styles["chat-message-container"]}>
@@ -1082,7 +1119,7 @@ export function Chat() {
                           }}
                         ></IconButton>
                       </div>
-                      {isUser ? (
+                      {isUser || isRunningResult ? (
                         <Avatar avatar={config.avatar} />
                       ) : (
                         <MaskAvatar mask={session.mask} />
@@ -1135,7 +1172,7 @@ export function Chat() {
                   )}
                   <div className={styles["chat-message-item"]}>
                     <Markdown
-                      content={message.content}
+                      content={content}
                       loading={
                         (message.preview || message.content.length === 0) &&
                         !isUser
@@ -1160,6 +1197,8 @@ export function Chat() {
               </div>
               {shouldShowClearContextDivider && <ClearContextDivider />}
             </Fragment>
+          ) : (
+            ""
           );
         })}
       </div>
