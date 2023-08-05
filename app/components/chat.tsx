@@ -1052,12 +1052,15 @@ export function Chat() {
 
           if (isRunningCode) {
             let auxiliaryPointer = i;
+
+            try {
+              const funcArguments = JSON.parse(content);
+              const funcArgumentName = Object.keys(funcArguments)[0];
+              content = funcArguments[funcArgumentName];
+            } catch {}
+
             content =
-              "## Execut code/command\n" +
-              "```shell\n" +
-              content +
-              "\n```" +
-              "\n";
+              "## Execut code/command\n" + "```\n" + content + "\n```\n";
 
             while (auxiliaryPointer < messages.length - 1) {
               auxiliaryPointer++;

@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 import { exec, spawn, ChildProcessWithoutNullStreams } from "child_process";
 
 function isOnlySpecificCharacters(text: string) {
-  const pattern = /^(>>> |\.\.\. )+$/;
+  const pattern = /^(>>>:|\.{3}:|In\ \[\d+\]:)+$/;
   return pattern.test(text);
 }
 
@@ -22,6 +22,13 @@ function hasOnlySpecificCharacters(
   return allowedSubstrings.every((substring) => s.includes(substring));
 }
 
+function removeNoise(text: string): string {
+  // 正则表达式匹配 "\nIn [任意数字]:" 在字符串开始或末尾
+  const regex = /^(Out\ *\[\d+\]:\ *)|(In \[\d+\]:\ *)$/gm;
+  // 使用 replace 方法替换找到的匹配为 ''
+  return text.replace(regex, "");
+}
+
 class PythonShell {
   private pythonProcess: ChildProcessWithoutNullStreams;
   private pythonContext: { [key: string]: any } = {};
@@ -29,32 +36,29 @@ class PythonShell {
   constructor() {
     // 创建一个Python子进程
     this.pythonProcess = spawn("ipython");
-
-    // 监听子进程的标准输出，获取执行结果
-    this.pythonProcess.stdout?.on("data", (data) => {
-      const output = data.toString().trim();
-      // console.log('Python Output:', output);
-
-      // 将输出作为字符串类型的结果解析
-      this.pythonContext["lastResult"] = output;
-    });
   }
 
   // 发送Python代码到子进程并返回一个Promise<string>来处理执行结果
   public runCode(code: string): Promise<string> {
     return new Promise<string>((resolve, reject) => {
-      // 监听子进程的标准输出，获取执行结果（仅仅监听一次，如果使用on一直监听，我不知道什么时候输出会结束）
-      this.pythonProcess.stdout?.once("data", (data) => {
+      // 监听子进程的标准输出，获取执行结果
+      this.pythonProcess.stdout?.on("data", (data) => {
+        // 首先删除首位空格以帮助我们正则校验
         const output = data.toString().trim();
-        console.log("Python Output:", output);
 
-        // 将输出作为字符串类型的结果解析
-        const result = output === "" ? "" : String(output);
+        if (
+          !isOnlySpecificCharacters(output) &&
+          !hasOnlySpecificCharacters(output)
+        ) {
+          console.log("Python Output:", output);
+          // 将输出作为字符串类型的结果解析
+          const result =
+            output === "" ? "" : removeNoise(String(output)).trim();
+          // 将结果存储到pythonContext对象中
+          this.pythonContext["lastResult"] = result;
 
-        // 将结果存储到pythonContext对象中
-        this.pythonContext["lastResult"] = result;
-
-        resolve(result);
+          resolve(result);
+        }
       });
 
       // 监听子进程的错误输出(一直监听)
