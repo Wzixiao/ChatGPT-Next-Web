@@ -29,6 +29,7 @@ import { AuthPage } from "./auth";
 import { getClientConfig } from "../config/client";
 import { api } from "../client/api";
 import { useAccessStore } from "../store";
+import { CodeView } from "./code-view";
 
 export function Loading(props: { noLogo?: boolean }) {
   return (
@@ -116,6 +117,8 @@ function Screen() {
   const isAuth = location.pathname === Path.Auth;
   const isMobileScreen = useMobileScreen();
 
+  console.log('styles["code-view"]', styles["code-view"]);
+  console.log('styles["sidebar-show"] ', styles["sidebar-show"]);
   useEffect(() => {
     loadAsyncGoogleFont();
   }, []);
@@ -148,6 +151,8 @@ function Screen() {
               <Route path={Path.Settings} element={<Settings />} />
             </Routes>
           </div>
+
+          <CodeView className={styles["code-view"]} />
         </>
       )}
     </div>

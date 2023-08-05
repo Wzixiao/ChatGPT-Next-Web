@@ -251,6 +251,8 @@ export function RenderExport(props: {
         role: role as any,
         content: role === "user" ? v.textContent ?? "" : v.innerHTML,
         date: "",
+        isRunningCode: false,
+        isRunningResult: false,
       };
     });
 
