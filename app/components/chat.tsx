@@ -1035,13 +1035,13 @@ export function Chat() {
       <div
         className={styles["chat-body"]}
         ref={scrollRef}
-        onScroll={(e) => onChatBodyScroll(e.currentTarget)}
-        onMouseDown={() => inputRef.current?.blur()}
-        onWheel={(e) => setAutoScroll(hitBottom && e.deltaY > 0)}
-        onTouchStart={() => {
-          inputRef.current?.blur();
-          setAutoScroll(false);
-        }}
+        // onScroll={(e) => onChatBodyScroll(e.currentTarget)}
+        // onMouseDown={() => inputRef.current?.blur()}
+        // onWheel={(e) => setAutoScroll(hitBottom && e.deltaY > 0)}
+        // onTouchStart={() => {
+        //   inputRef.current?.blur();
+        //   setAutoScroll(false);
+        // }}
       >
         {messages.map((message, i) => {
           const isUser = message.role === "user";

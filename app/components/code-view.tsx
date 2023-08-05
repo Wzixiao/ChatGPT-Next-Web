@@ -33,37 +33,12 @@ const funcArgumentsMapLanguage = {
   command: "shell",
 };
 
-function useScrollToBottom() {
-  // for auto-scroll
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const [autoScroll, setAutoScroll] = useState(true);
-  const scrollToBottom = useCallback(() => {
-    const dom = scrollRef.current;
-    if (dom) {
-      requestAnimationFrame(() => dom.scrollTo(0, dom.scrollHeight));
-    }
-  }, []);
-
-  // auto scroll
-  useEffect(() => {
-    autoScroll && scrollToBottom();
-  });
-
-  return {
-    scrollRef,
-    autoScroll,
-    setAutoScroll,
-    scrollToBottom,
-  };
-}
-
 export function CodeView(props: { className: string }) {
   const [session, sessionIndex] = useChatStore((state) => [
     state.currentSession(),
     state.currentSessionIndex,
   ]);
 
-  const { scrollRef, setAutoScroll, scrollToBottom } = useScrollToBottom();
   const messages = session.messages;
 
   console.log("messages", messages);
@@ -79,7 +54,7 @@ export function CodeView(props: { className: string }) {
         </div>
       </div>
       <div className={styles["code-view-container"]}>
-        <div>
+        <div className={styles["code-view-body"]}>
           {messages.map((message, i) => {
             let content = message.content;
             const isRunningCode = message.isRunningCode;
@@ -104,11 +79,7 @@ export function CodeView(props: { className: string }) {
                 {isRunningCode && (
                   <div className={styles["code-view-row-content"]}>
                     <div className={styles["code-view-row-code"]}>
-                      <Markdown
-                        content={content}
-                        parentRef={scrollRef}
-                        defaultShow={true}
-                      />
+                      <Markdown content={content} defaultShow={true} />
                     </div>
                   </div>
                 )}

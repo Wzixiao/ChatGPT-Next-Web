@@ -30,6 +30,17 @@
     }
     .code-view-container{
         padding: 5px;
+        height: 85%;
+
+        .code-view-body{
+            height: 100%;
+            flex: 1 1;
+            overflow: auto;
+            overflow-x: hidden;
+            padding-bottom: 40px;
+            position: relative;
+            overscroll-behavior: none;
+        }
 
         .code-view-row{
             border-radius: 10px;
