@@ -56,8 +56,6 @@ export interface ChatSession {
   lastUpdate: number;
   lastSummarizeIndex: number;
   clearContextIndex?: number;
-  isRunningCode: boolean;
-  isRunningResult: boolean;
   mask: Mask;
 }
 
@@ -80,8 +78,6 @@ function createEmptySession(): ChatSession {
     },
     lastUpdate: Date.now(),
     lastSummarizeIndex: 0,
-    isRunningCode: false,
-    isRunningResult: false,
     mask: createEmptyMask(),
   };
 }
@@ -348,7 +344,6 @@ export const useChatStore = create<ChatStore>()(
             }
             ChatControllerPool.remove(session.id, botMessage.id);
             if (isContinue) {
-              session.isRunningCode = true;
               session.messages[session.messages.length - 1].isRunningCode =
                 true;
               await nextOnUserInput(nextContent, (isRunningResult = true));

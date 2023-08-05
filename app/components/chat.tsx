@@ -1035,20 +1035,19 @@ export function Chat() {
       <div
         className={styles["chat-body"]}
         ref={scrollRef}
-        // onScroll={(e) => onChatBodyScroll(e.currentTarget)}
-        // onMouseDown={() => inputRef.current?.blur()}
-        // onWheel={(e) => setAutoScroll(hitBottom && e.deltaY > 0)}
-        // onTouchStart={() => {
-        //   inputRef.current?.blur();
-        //   setAutoScroll(false);
-        // }}
+        onScroll={(e) => onChatBodyScroll(e.currentTarget)}
+        onMouseDown={() => inputRef.current?.blur()}
+        onWheel={(e) => setAutoScroll(hitBottom && e.deltaY > 0)}
+        onTouchStart={() => {
+          inputRef.current?.blur();
+          setAutoScroll(false);
+        }}
       >
         {messages.map((message, i) => {
           const isUser = message.role === "user";
           const isRunningCode = message.isRunningCode;
           const isRunningResult = message.isRunningResult;
           let content = message.content;
-          // console.log(message);
 
           if (isRunningCode) {
             let auxiliaryPointer = i;

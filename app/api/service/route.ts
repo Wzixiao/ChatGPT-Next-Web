@@ -1,33 +1,5 @@
-// import { repl, command } from "./function"
 import { NextResponse } from "next/server";
-// import { PythonShell } from "python-shell";
 import { exec, spawn, ChildProcessWithoutNullStreams } from "child_process";
-
-function isOnlySpecificCharacters(text: string) {
-  const pattern = /^(>>>:|\.{3}:|In\ \[\d+\]:)+$/;
-  return pattern.test(text);
-}
-
-function hasOnlySpecificCharacters(
-  s: string,
-  allowedSubstrings: string[] = [
-    "Python",
-    "main",
-    "GCC",
-    "on",
-    "help",
-    "license",
-  ],
-) {
-  return allowedSubstrings.every((substring) => s.includes(substring));
-}
-
-function removeNoise(text: string): string {
-  // 正则表达式匹配 "\nIn [任意数字]:" 在字符串开始或末尾
-  const regex = /^(Out\ *\[\d+\]:\ *)|(In \[\d+\]:\ *)$/gm;
-  // 使用 replace 方法替换找到的匹配为 ''
-  return text.replace(regex, "");
-}
 
 class PythonShell {
   private pythonProcess: ChildProcessWithoutNullStreams;
@@ -36,6 +8,35 @@ class PythonShell {
   constructor() {
     // 创建一个Python子进程
     this.pythonProcess = spawn("ipython");
+  }
+
+  // 使用正则去掉ipython的噪点字符
+  private static isOnlySpecificCharacters(text: string) {
+    const pattern = /^(>>>:|\.{3}:|In\ \[\d+\]:)+$/;
+    return pattern.test(text);
+  }
+
+  // 检查这条语句是否为“启动横幅”（Banner）
+  private static hasOnlySpecificCharacters(
+    s: string,
+    allowedSubstrings: string[] = [
+      "Python",
+      "main",
+      "GCC",
+      "on",
+      "help",
+      "license",
+    ],
+  ) {
+    return allowedSubstrings.every((substring) => s.includes(substring));
+  }
+
+  // 删除stdOut以及stdIn的提示字符
+  private static removeNoise(text: string): string {
+    // 正则表达式匹配 "\nIn [任意数字]:" 在字符串开始或末尾
+    const regex = /^(Out\ *\[\d+\]:\ *)|(In \[\d+\]:\ *)$/gm;
+    // 使用 replace 方法替换找到的匹配为 ''
+    return text.replace(regex, "");
   }
 
   // 发送Python代码到子进程并返回一个Promise<string>来处理执行结果
@@ -47,13 +48,15 @@ class PythonShell {
         const output = data.toString().trim();
 
         if (
-          !isOnlySpecificCharacters(output) &&
-          !hasOnlySpecificCharacters(output)
+          !PythonShell.isOnlySpecificCharacters(output) &&
+          !PythonShell.hasOnlySpecificCharacters(output)
         ) {
           console.log("Python Output:", output);
+
           // 将输出作为字符串类型的结果解析
           const result =
-            output === "" ? "" : removeNoise(String(output)).trim();
+            output === "" ? "" : PythonShell.removeNoise(String(output)).trim();
+
           // 将结果存储到pythonContext对象中
           this.pythonContext["lastResult"] = result;
 
@@ -65,8 +68,8 @@ class PythonShell {
       this.pythonProcess.stderr?.on("data", (data) => {
         // python存在噪点输出
         if (
-          !isOnlySpecificCharacters(data.toString()) &&
-          !hasOnlySpecificCharacters(data.toString())
+          !PythonShell.isOnlySpecificCharacters(data.toString()) &&
+          !PythonShell.hasOnlySpecificCharacters(data.toString())
         ) {
           console.error("Python Error:", JSON.stringify(data.toString()));
           reject(data.toString());

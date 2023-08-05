@@ -221,38 +221,28 @@ export class ChatGPTApi implements LLMApi {
             }
           },
           async onmessage(msg) {
-            if (msg.data === "[DONE]" || finished) {
-              return finish();
-            }
+            // Early return if the message indicates completion or if already finished
+            if (msg.data === "[DONE]" || finished) return finish();
 
             const text = msg.data;
 
             try {
               const json = JSON.parse(text);
-              let delta;
+              const choiceDelta = json.choices?.[0]?.delta;
 
-              if (json.choices[0].delta.function_call) {
-                delta = json.choices[0].delta.function_call.arguments;
-              } else {
-                delta = json.choices[0].delta.content;
-              }
+              if (!choiceDelta) return;
+
+              // Extract content or function call arguments from the delta
+              let delta = choiceDelta.function_call
+                ? choiceDelta.function_call.arguments
+                : choiceDelta.content;
 
               if (delta) {
                 responseText += delta;
-
-                if (json.choices[0].delta.function_call) {
-                  if (
-                    responseText.startsWith("{") ||
-                    responseText.startsWith("```")
-                  ) {
-                    responseText = getJson(responseText);
-                    responseText = "```\n" + responseText + "\n```";
-                  }
-                }
-
                 options.onUpdate?.(responseText, delta);
               }
 
+              // Handle a finish_reason of 'function_call'
               if (json.choices[0].finish_reason == "function_call") {
                 responseText = getJson(responseText);
 
@@ -262,7 +252,6 @@ export class ChatGPTApi implements LLMApi {
                 });
 
                 const commodRunResult = await serviceStreamToText(result.body!);
-
                 options.onFinish(responseText, true, commodRunResult);
               }
             } catch (e) {

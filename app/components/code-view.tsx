@@ -41,8 +41,6 @@ export function CodeView(props: { className: string }) {
 
   const messages = session.messages;
 
-  console.log("messages", messages);
-
   return (
     <div className={`${styles["code-view"]} ${props.className}`}>
       <div className={styles["code-view-header"]}>
