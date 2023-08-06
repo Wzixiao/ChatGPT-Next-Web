@@ -147,7 +147,12 @@ function executeShellCommand(command: string): Promise<string> {
         if (stderr) {
           reject(stderr);
         } else {
-          resolve(stdout.toString());
+          let stdoutStr = stdout.toString();
+          // 如果返回值为空
+          stdoutStr = stdoutStr
+            ? stdoutStr
+            : "The instruction was executed successfully, but there was no return value";
+          resolve(stdoutStr);
         }
       },
     );
