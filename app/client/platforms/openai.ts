@@ -242,16 +242,24 @@ export class ChatGPTApi implements LLMApi {
                 options.onUpdate?.(responseText, delta);
               }
 
+              console.log("options.pythonShellId ", options.pythonShellId);
+
               // Handle a finish_reason of 'function_call'
               if (json.choices[0].finish_reason == "function_call") {
+                // 获取字符串中的json
                 responseText = getJson(responseText);
 
+                // 返回gpt执行俄的代码到后端
                 const result = await fetch("/api/service", {
                   method: "POST",
-                  body: responseText,
+                  body: JSON.stringify({
+                    executionData: JSON.parse(responseText),
+                    pythonShellId: options.pythonShellId,
+                  }),
                 });
 
                 const commodRunResult = await serviceStreamToText(result.body!);
+
                 options.onFinish(responseText, true, commodRunResult);
               }
             } catch (e) {

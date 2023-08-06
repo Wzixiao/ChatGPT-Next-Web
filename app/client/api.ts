@@ -26,6 +26,7 @@ export interface LLMConfig {
 export interface ChatOptions {
   messages: RequestMessage[];
   config: LLMConfig;
+  pythonShellId: string | null;
 
   onUpdate?: (message: string, chunk: string) => void;
   onFinish: (message: string, isContinue: boolean, nextContent: string) => void;

@@ -1,9 +1,20 @@
 import { NextResponse } from "next/server";
 import { exec, spawn, ChildProcessWithoutNullStreams } from "child_process";
 
+type CommandKey = "code" | "command";
+
+type CommandExecutionData = { [K in CommandKey]: string } & (
+  | { code: string }
+  | { command: string }
+);
+
+interface CommandDetail {
+  executionData: CommandExecutionData;
+  pythonShellId: string | null;
+}
+
 class PythonShell {
   private pythonProcess: ChildProcessWithoutNullStreams;
-  private pythonContext: { [key: string]: any } = {};
 
   constructor() {
     // 创建一个Python子进程
@@ -18,7 +29,7 @@ class PythonShell {
 
   // 检查这条语句是否为“启动横幅”（Banner）
   private static hasOnlySpecificCharacters(
-    s: string,
+    text: string,
     allowedSubstrings: string[] = [
       "Python",
       "main",
@@ -28,38 +39,54 @@ class PythonShell {
       "license",
     ],
   ) {
-    return allowedSubstrings.every((substring) => s.includes(substring));
+    return allowedSubstrings.every((substring) => text.includes(substring));
   }
 
   // 删除stdOut以及stdIn的提示字符
   private static removeNoise(text: string): string {
-    // 正则表达式匹配 "\nIn [任意数字]:" 在字符串开始或末尾
-    const regex = /^(Out\ *\[\d+\]:\ *)|(In \[\d+\]:\ *)$/gm;
-    // 使用 replace 方法替换找到的匹配为 ''
-    return text.replace(regex, "");
+    // 第一步：删除字符串首尾类似“In [2]:”的子字符串
+    // 第二步：删除ANSI转义代码（颜色等信息）
+    return text
+      .replace(/^(Out\ *\[\d+\]:\ *)|(In \[\d+\]:\ *)$/gm, "")
+      .replace(/\x1B\[([0-9]{1,2}(;[0-9]{1,2})?)?[m|K]/g, "");
   }
 
   // 发送Python代码到子进程并返回一个Promise<string>来处理执行结果
   public runCode(code: string): Promise<string> {
     return new Promise<string>((resolve, reject) => {
+      let outputList: string[] = [];
+
       // 监听子进程的标准输出，获取执行结果
       this.pythonProcess.stdout?.on("data", (data) => {
         // 首先删除首位空格以帮助我们正则校验
         const output = data.toString().trim();
+        outputList.push(output);
+
+        console.log("round outputList:", outputList);
+        // console.log("------------");
+
+        // 如果打印为空就会出现连续两次打印的是一致的情况
+        if (
+          outputList.length >= 2 &&
+          outputList[outputList.length - 1] ==
+            outputList[outputList.length - 2] &&
+          output != "...:"
+        ) {
+          outputList = [];
+          resolve(
+            "The code is successfully executed, but the printed value is empty",
+          );
+        }
 
         if (
           !PythonShell.isOnlySpecificCharacters(output) &&
           !PythonShell.hasOnlySpecificCharacters(output)
         ) {
-          console.log("Python Output:", output);
-
           // 将输出作为字符串类型的结果解析
           const result =
             output === "" ? "" : PythonShell.removeNoise(String(output)).trim();
 
-          // 将结果存储到pythonContext对象中
-          this.pythonContext["lastResult"] = result;
-
+          outputList = [];
           resolve(result);
         }
       });
@@ -88,13 +115,26 @@ class PythonShell {
 }
 
 // 使用Promise封装的PythonShell类
-const pythonShell = new PythonShell();
+const pythonShells: Record<string, PythonShell> = {};
 
-export function execute_python(code: string): Promise<string> {
-  return pythonShell.runCode(code);
+function executePythonCode(
+  code: string,
+  pythonShellId: string | null,
+): Promise<string> {
+  if (!pythonShellId) {
+    return new Promise((resolve, reject) => {
+      reject("pythonShellId is null");
+    });
+  }
+
+  if (!(pythonShellId in pythonShells)) {
+    pythonShells[pythonShellId] = new PythonShell();
+  }
+
+  return pythonShells[pythonShellId].runCode(code);
 }
 
-export function execute_shell(command: string): Promise<string> {
+function executeShellCommand(command: string): Promise<string> {
   return new Promise<string>((resolve, reject) => {
     exec(
       command,
@@ -114,6 +154,14 @@ export function execute_shell(command: string): Promise<string> {
   });
 }
 
+const commandHandlers: Record<
+  CommandKey,
+  (arg: string, pythonShellId: string | null) => Promise<string>
+> = {
+  code: executePythonCode,
+  command: executeShellCommand,
+};
+
 async function handle(req: Request): Promise<Response> {
   if (req.method !== "POST") {
     return new Response("Error", {
@@ -122,16 +170,21 @@ async function handle(req: Request): Promise<Response> {
     });
   }
 
-  const funcArguments = await req.json();
+  const commandDetails: CommandDetail = await req.json();
 
-  // 目前有且只有一个
-  const funcArgumentName = Object.keys(funcArguments)[0];
+  const argumentName: CommandKey = Object.keys(
+    commandDetails.executionData,
+  )[0] as CommandKey;
 
-  const func = functionMap[funcArgumentName as keyof typeof functionMap];
+  const func = commandHandlers[argumentName];
 
   let result;
+
   try {
-    result = await func(funcArguments[funcArgumentName]);
+    result = await func(
+      commandDetails.executionData[argumentName],
+      commandDetails.pythonShellId,
+    );
   } catch (err) {
     result = err;
   }
@@ -141,11 +194,6 @@ async function handle(req: Request): Promise<Response> {
     code: 200,
   });
 }
-
-export const functionMap = {
-  code: execute_python,
-  command: execute_shell,
-};
 
 export const GET = handle;
 export const POST = handle;

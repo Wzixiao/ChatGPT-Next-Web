@@ -85,6 +85,7 @@ function createEmptySession(): ChatSession {
 interface ChatStore {
   sessions: ChatSession[];
   currentSessionIndex: number;
+  pythonShellId: string;
   clearSessions: () => void;
   moveSession: (from: number, to: number) => void;
   selectSession: (index: number) => void;
@@ -105,7 +106,6 @@ interface ChatStore {
   resetSession: () => void;
   getMessagesWithMemory: () => ChatMessage[];
   getMemoryPrompt: () => ChatMessage;
-
   clearAllData: () => void;
 }
 
@@ -141,6 +141,7 @@ export const useChatStore = create<ChatStore>()(
     (set, get) => ({
       sessions: [createEmptySession()],
       currentSessionIndex: 0,
+      pythonShellId: nanoid(),
 
       clearSessions() {
         set(() => ({
@@ -279,6 +280,7 @@ export const useChatStore = create<ChatStore>()(
       async onUserInput(content, isRunningResult = false) {
         const session = get().currentSession();
         const modelConfig = session.mask.modelConfig;
+        console.log("pythonShellId", this.pythonShellId);
 
         const userContent = fillTemplateWith(content, modelConfig);
 
@@ -327,6 +329,8 @@ export const useChatStore = create<ChatStore>()(
         api.llm.chat({
           messages: sendMessages,
           config: { ...modelConfig, stream: true },
+          pythonShellId: this.pythonShellId,
+
           onUpdate(message) {
             botMessage.streaming = true;
             if (message) {
@@ -517,6 +521,7 @@ export const useChatStore = create<ChatStore>()(
           );
           api.llm.chat({
             messages: topicMessages,
+            pythonShellId: null,
             config: {
               model: "gpt-3.5-turbo",
             },
@@ -572,6 +577,7 @@ export const useChatStore = create<ChatStore>()(
                 date: "",
               }),
             ),
+            pythonShellId: null,
             config: { ...modelConfig, stream: true },
             onUpdate(message) {
               session.memoryPrompt = message;
