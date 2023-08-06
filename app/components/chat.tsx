@@ -87,6 +87,21 @@ const Markdown = dynamic(async () => (await import("./markdown")).Markdown, {
   loading: () => <LoadingIcon />,
 });
 
+const formatExecutedResult = (content: string): string => {
+  const lines = content.split("\n");
+  return lines.map((line) => `> ${line}`).join("\n");
+};
+
+const getFunctionArguments = (content: string): string => {
+  try {
+    const funcArguments = JSON.parse(content);
+    const funcArgumentName = Object.keys(funcArguments)[0];
+    return funcArguments[funcArgumentName];
+  } catch {
+    return "";
+  }
+};
+
 export function SessionConfigModel(props: { onClose: () => void }) {
   const chatStore = useChatStore();
   const session = chatStore.currentSession();
@@ -1050,29 +1065,26 @@ export function Chat() {
           let content = message.content;
 
           if (isRunningCode) {
-            let auxiliaryPointer = i;
-
-            try {
-              const funcArguments = JSON.parse(content);
-              const funcArgumentName = Object.keys(funcArguments)[0];
-              content = funcArguments[funcArgumentName];
-            } catch {}
-
-            content =
-              "## Execut code/command\n" + "```\n" + content + "\n```\n";
+            let auxiliaryPointer = i - 1;
+            content = "";
 
             while (auxiliaryPointer < messages.length - 1) {
               auxiliaryPointer++;
 
               if (messages[auxiliaryPointer].isRunningResult) {
-                content += "## Executed Result\n";
-                const lines = messages[auxiliaryPointer].content.split("\n");
-                for (const line of lines) {
-                  content += "> " + line + "\n";
-                }
+                content +=
+                  "## Executed Result\n" +
+                  formatExecutedResult(messages[auxiliaryPointer].content) +
+                  "\n";
+              } else if (messages[auxiliaryPointer].isRunningCode) {
+                content +=
+                  "## Execut code/command\n" +
+                  "```\n" +
+                  getFunctionArguments(messages[auxiliaryPointer].content) +
+                  "\n```\n";
               } else if (messages[auxiliaryPointer].role == "assistant") {
-                content += "## Gpt Result\n";
-                content += messages[auxiliaryPointer].content + "\n";
+                content +=
+                  "## Gpt Result\n" + messages[auxiliaryPointer].content + "\n";
               } else {
                 break;
               }
