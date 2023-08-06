@@ -21,7 +21,7 @@ class PythonShell {
     this.pythonProcess = spawn("ipython");
   }
 
-  // 使用正则去掉ipython的噪点字符
+  // 检查一个字符串是否只存在"...:"或者"In [xxx]:"
   private static isOnlySpecificCharacters(text: string) {
     const pattern = /^(>>>:|\.{3}:|In\ \[\d+\]:)+$/;
     return pattern.test(text);
@@ -42,58 +42,71 @@ class PythonShell {
     return allowedSubstrings.every((substring) => text.includes(substring));
   }
 
-  // 删除stdOut以及stdIn的提示字符
+  // 删除在ipython中stdOut以及stdIn的提示字符
   private static removeNoise(text: string): string {
     // 第一步：删除字符串首尾类似“In [2]:”的子字符串
     // 第二步：删除ANSI转义代码（颜色等信息）
     return text
       .replace(/^(Out\ *\[\d+\]:\ *)|(In \[\d+\]:\ *)$/gm, "")
-      .replace(/\x1B\[([0-9]{1,2}(;[0-9]{1,2})?)?[m|K]/g, "");
+      .replace(/\x1b\[[0-9;]*m/g, "");
+  }
+
+  private static filterWraper(text: string): boolean {
+    return (
+      !PythonShell.isOnlySpecificCharacters(text) &&
+      !PythonShell.hasOnlySpecificCharacters(text)
+    );
   }
 
   // 发送Python代码到子进程并返回一个Promise<string>来处理执行结果
   public runCode(code: string): Promise<string> {
     return new Promise<string>((resolve, reject) => {
       let outputList: string[] = [];
+      let timeoutHandle: NodeJS.Timeout | null = null;
 
-      // 监听子进程的标准输出，获取执行结果
-      this.pythonProcess.stdout?.on("data", (data) => {
-        // 首先删除首位空格以帮助我们正则校验
-        const output = data.toString().trim();
-        outputList.push(output);
+      // 处理和返回输出的函数
+      const handleOutput = () => {
+        // 停止定时器
+        if (timeoutHandle) {
+          clearTimeout(timeoutHandle);
+          timeoutHandle = null;
+        }
 
-        console.log("round outputList:", outputList);
-        // console.log("------------");
+        // 将输出作为字符串类型的结果解析
+        const result = outputList
+          .filter(PythonShell.filterWraper)
+          .map(PythonShell.removeNoise)
+          .join("")
+          .trim();
 
-        // 如果打印为空就会出现连续两次打印的是一致的情况
-        if (
-          outputList.length >= 2 &&
-          outputList[outputList.length - 1] ==
-            outputList[outputList.length - 2] &&
-          output != "...:"
-        ) {
-          outputList = [];
+        outputList = [];
+        if (result === "") {
           resolve(
             "The code is successfully executed, but the printed value is empty",
           );
-        }
-
-        if (
-          !PythonShell.isOnlySpecificCharacters(output) &&
-          !PythonShell.hasOnlySpecificCharacters(output)
-        ) {
-          // 将输出作为字符串类型的结果解析
-          const result =
-            output === "" ? "" : PythonShell.removeNoise(String(output)).trim();
-
-          outputList = [];
+        } else {
           resolve(result);
         }
+      };
+
+      this.pythonProcess.stdout?.on("data", (data) => {
+        const output = data.toString().trim();
+        outputList.push(output);
+        console.log(
+          "output---------------------------------------------------",
+        );
+        console.log(output);
+
+        // 如果已经有一个定时器运行，取消它
+        if (timeoutHandle) {
+          clearTimeout(timeoutHandle);
+        }
+
+        // 设置新的定时器
+        timeoutHandle = setTimeout(handleOutput, 2000); // 等待2秒
       });
 
-      // 监听子进程的错误输出(一直监听)
       this.pythonProcess.stderr?.on("data", (data) => {
-        // python存在噪点输出
         if (
           !PythonShell.isOnlySpecificCharacters(data.toString()) &&
           !PythonShell.hasOnlySpecificCharacters(data.toString())
