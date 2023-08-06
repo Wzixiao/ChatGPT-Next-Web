@@ -85,7 +85,6 @@ function createEmptySession(): ChatSession {
 interface ChatStore {
   sessions: ChatSession[];
   currentSessionIndex: number;
-  pythonShellId: string;
   clearSessions: () => void;
   moveSession: (from: number, to: number) => void;
   selectSession: (index: number) => void;
@@ -141,7 +140,6 @@ export const useChatStore = create<ChatStore>()(
     (set, get) => ({
       sessions: [createEmptySession()],
       currentSessionIndex: 0,
-      pythonShellId: nanoid(),
 
       clearSessions() {
         set(() => ({
@@ -280,7 +278,6 @@ export const useChatStore = create<ChatStore>()(
       async onUserInput(content, isRunningResult = false) {
         const session = get().currentSession();
         const modelConfig = session.mask.modelConfig;
-        console.log("pythonShellId", this.pythonShellId);
 
         const userContent = fillTemplateWith(content, modelConfig);
 
@@ -325,11 +322,13 @@ export const useChatStore = create<ChatStore>()(
 
         const nextOnUserInput = this.onUserInput.bind(this);
 
+        const pythonShellId = this.currentSession().id;
+
         // make request
         api.llm.chat({
           messages: sendMessages,
           config: { ...modelConfig, stream: true },
-          pythonShellId: this.pythonShellId,
+          pythonShellId: pythonShellId,
 
           onUpdate(message) {
             botMessage.streaming = true;
@@ -520,8 +519,8 @@ export const useChatStore = create<ChatStore>()(
             }),
           );
           api.llm.chat({
-            messages: topicMessages,
             pythonShellId: null,
+            messages: topicMessages,
             config: {
               model: "gpt-3.5-turbo",
             },
@@ -570,6 +569,7 @@ export const useChatStore = create<ChatStore>()(
           modelConfig.sendMemory
         ) {
           api.llm.chat({
+            pythonShellId: null,
             messages: toBeSummarizedMsgs.concat(
               createMessage({
                 role: "system",
@@ -577,7 +577,6 @@ export const useChatStore = create<ChatStore>()(
                 date: "",
               }),
             ),
-            pythonShellId: null,
             config: { ...modelConfig, stream: true },
             onUpdate(message) {
               session.memoryPrompt = message;

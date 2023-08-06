@@ -18,7 +18,7 @@ const functionsList = [
   {
     name: "execute_python",
     description:
-      "Exexute python code. Args: code (String): It's just a python code string. Returns: CodeExecutionResponse: The result of the code execution. If you need to output the result, you must use print to wrap the variable you want to print.",
+      "Exexute python code. Args: code (String): It's just a python code string. Returns: CodeExecutionResponse: The result of the code execution. ",
     parameters: {
       type: "object",
       properties: {
@@ -242,8 +242,6 @@ export class ChatGPTApi implements LLMApi {
                 options.onUpdate?.(responseText, delta);
               }
 
-              console.log("options.pythonShellId ", options.pythonShellId);
-
               // Handle a finish_reason of 'function_call'
               if (json.choices[0].finish_reason == "function_call") {
                 // 获取字符串中的json
@@ -254,7 +252,7 @@ export class ChatGPTApi implements LLMApi {
                   method: "POST",
                   body: JSON.stringify({
                     executionData: JSON.parse(responseText),
-                    pythonShellId: options.pythonShellId,
+                    pythonShellId: "a",
                   }),
                 });
 

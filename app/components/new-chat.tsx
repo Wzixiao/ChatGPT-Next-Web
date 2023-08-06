@@ -16,6 +16,7 @@ import { MaskAvatar } from "./mask";
 import { useCommand } from "../command";
 import { showConfirm } from "./ui-lib";
 import { BUILTIN_MASK_STORE } from "../masks";
+import { nanoid } from "nanoid";
 
 function getIntersectionArea(aRect: DOMRect, bRect: DOMRect) {
   const xmin = Math.max(aRect.x, bRect.x);
@@ -81,6 +82,7 @@ function useMaskGroup(masks: Mask[]) {
 
 export function NewChat() {
   const chatStore = useChatStore();
+
   const maskStore = useMaskStore();
 
   const masks = maskStore.getAll();
