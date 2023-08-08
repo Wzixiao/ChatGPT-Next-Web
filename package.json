@@ -3,7 +3,9 @@
   "private": false,
   "license": "mit",
   "scripts": {
-    "dev": "next dev",
+    "dev-frontend": "next dev",
+    "dev-backend": "python app/api/service/execute_code.py",
+    "dev": "concurrently --kill-others \"npm run dev-frontend\" \"npm run dev-backend\"",
     "build": "cross-env BUILD_MODE=standalone next build",
     "start": "next start",
     "lint": "next lint",
@@ -49,6 +51,7 @@
     "@types/react-dom": "^18.2.7",
     "@types/react-katex": "^3.0.0",
     "@types/spark-md5": "^3.0.2",
+    "concurrently": "^8.2.0",
     "cross-env": "^7.0.3",
     "eslint": "^8.44.0",
     "eslint-config-next": "13.2.3",

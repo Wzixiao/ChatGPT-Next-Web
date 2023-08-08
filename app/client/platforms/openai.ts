@@ -65,26 +65,34 @@ function getJson(text: string) {
 async function serviceStreamToText(stream: ReadableStream) {
   const decoder = new TextDecoder("utf-8");
   const reader = stream.getReader();
-  let result: any = "";
+  let result = "";
+  let accumulatedData = "";
 
   while (true) {
     const { done, value } = await reader.read();
     if (done) break;
-    result += decoder.decode(value);
+
+    accumulatedData += decoder.decode(value, { stream: true });
+
+    let newlineIndex;
+    while ((newlineIndex = accumulatedData.indexOf("\n\n")) !== -1) {
+      const fullEvent = accumulatedData.substring(0, newlineIndex);
+      accumulatedData = accumulatedData.substring(newlineIndex + 2);
+
+      const jsonData = fullEvent
+        .split("\n")
+        .map((line) => line.replace(/^data: /, ""))
+        .join("");
+      try {
+        const parsed = JSON.parse(jsonData);
+        result += parsed.content;
+      } catch (e) {
+        console.error("Error parsing JSON from SSE:", e);
+      }
+    }
   }
 
-  try {
-    result = JSON.parse(result as string);
-  } catch (e) {
-    console.error("Error parsing JSON", e);
-    return "";
-  }
-
-  if (typeof result === "object" && result.code != 200) {
-    return "";
-  }
-
-  return result.data;
+  return result;
 }
 
 export interface OpenAIListModelResponse {
@@ -248,15 +256,20 @@ export class ChatGPTApi implements LLMApi {
                 responseText = getJson(responseText);
 
                 // 返回gpt执行俄的代码到后端
-                const result = await fetch("/api/service", {
+                const result = await fetch("http://127.0.0.1:5000/execute", {
                   method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                  },
                   body: JSON.stringify({
                     executionData: JSON.parse(responseText),
-                    pythonShellId: "a",
+                    sessionId: options.pythonShellId,
                   }),
                 });
 
                 const commodRunResult = await serviceStreamToText(result.body!);
+
+                console.log("commodRunResult", commodRunResult);
 
                 options.onFinish(responseText, true, commodRunResult);
               }
