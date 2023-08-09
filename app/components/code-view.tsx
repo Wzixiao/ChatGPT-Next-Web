@@ -61,14 +61,28 @@ export function CodeView(props: { className: string }) {
               try {
                 const funcArguments = JSON.parse(content);
                 const funcArgumentName = Object.keys(funcArguments)[0];
-                content = "```\n" + funcArguments[funcArgumentName] + "\n```";
-                content =
-                  "" +
+                content = `\`\`\`\n${funcArguments[funcArgumentName]} \n\`\`\`\n`;
+
+                content = `${
                   funcArgumentsMapLanguage[
                     funcArgumentName as keyof typeof funcArgumentsMapLanguage
-                  ] +
-                  "\n" +
-                  content;
+                  ]
+                }\n${content}\n`;
+
+                if (
+                  i < messages.length - 1 &&
+                  messages[i + 1].isRunningResult
+                ) {
+                  let codeRunningResult = messages[i + 1].content;
+                  if (codeRunningResult.length >= 300) {
+                    codeRunningResult = codeRunningResult.slice(-300);
+                    content += "----------------------\n> ...\n";
+                  }
+
+                  for (let line of codeRunningResult.split("\n")) {
+                    content += `>  ${line}\n`;
+                  }
+                }
               } catch {}
             }
 

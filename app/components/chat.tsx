@@ -1072,19 +1072,20 @@ export function Chat() {
               auxiliaryPointer++;
 
               if (messages[auxiliaryPointer].isRunningResult) {
-                content +=
-                  "## Executed Result\n" +
-                  formatExecutedResult(messages[auxiliaryPointer].content) +
-                  "\n";
+                let codeRunngingResult = messages[auxiliaryPointer].content;
+                codeRunngingResult =
+                  codeRunngingResult.length >= 300
+                    ? "...\n" + codeRunngingResult.slice(-300)
+                    : codeRunngingResult.slice(-300);
+                content += `## Executed Result\n${formatExecutedResult(
+                  codeRunngingResult,
+                )}\n`;
               } else if (messages[auxiliaryPointer].isRunningCode) {
-                content +=
-                  "## Execut code/command\n" +
-                  "```\n" +
-                  getFunctionArguments(messages[auxiliaryPointer].content) +
-                  "\n```\n";
+                content += `## Execut code/command\n\`\`\`\n${getFunctionArguments(
+                  messages[auxiliaryPointer].content,
+                )}\n\`\`\`\n`;
               } else if (messages[auxiliaryPointer].role == "assistant") {
-                content +=
-                  "## Gpt Result\n" + messages[auxiliaryPointer].content + "\n";
+                content += `## Gpt Result\n${messages[auxiliaryPointer].content}\n`;
               } else {
                 break;
               }

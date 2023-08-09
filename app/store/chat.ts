@@ -284,9 +284,9 @@ export const useChatStore = create<ChatStore>()(
         console.log("[User Input] after template: ", userContent);
 
         if (isRunningResult) {
-          content =
-            "The following is the information I printed using your command or code. Is it correct? If it is correct, please analyze the printed information. If there is no data below, please analyze the reason for not printing\n\n" +
-            content;
+          content = content;
+          // "The following is the information I printed using your command or code. Is it correct? If it is correct, please analyze the printed information. If there is no data below, please analyze the reason for not printing\n\n" +
+          // content;
         }
 
         const userMessage: ChatMessage = createMessage({
@@ -318,6 +318,12 @@ export const useChatStore = create<ChatStore>()(
             savedUserMessage,
             botMessage,
           ]);
+        });
+
+        sendMessages.map((message) => {
+          if (message.isRunningResult) {
+            message.content = message.content.slice(-300);
+          }
         });
 
         const nextOnUserInput = this.onUserInput.bind(this);
